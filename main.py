@@ -18,13 +18,9 @@ import stan
 from astroquery.gaia import Gaia
 from astroquery.simbad import Simbad
 
-# --- PATCH: Only fetch files if they do not already exist ---
 def safe_fetch(version):
-    # This helper checks if the third file (CommandedScanLaw_001.csv.gz) exists.
-    # (You can extend this check if other files must be skipped.)
     import os
     base_dir = os.path.dirname(scanninglaw.__file__)
-    # Construct the expected file path for the CommandedScanLaw file:
     file_path = os.path.join(base_dir, 'data', 'cog', 'CommandedScanLaw_001.csv.gz')
     if os.path.exists(file_path):
         print("safe_fetch: file {} exists, skipping download for version '{}'.".format(file_path, version))
@@ -32,11 +28,9 @@ def safe_fetch(version):
         print("safe_fetch: file {} not found, calling fetch for version '{}'.".format(file_path, version))
         scanninglaw.times.fetch(version=version)
 
-# Instead of calling scanninglaw.times.fetch directly, use safe_fetch:
 safe_fetch('cog3_2020')
 safe_fetch('dr3_nominal')
 dr3_sl = scanninglaw.times.Times(version='dr3_nominal')
-# --- END OF PATCH ---
 
 def find_obs(ra, dec):
     c = scanninglaw.source.Source(ra, dec, unit='deg')
@@ -62,7 +56,6 @@ def convert_julian_date(j_date):
 
 def system_pos(t_obs, ra, dec, ra_off, dec_off, pmra, pmdec, dist, m1, m2, l, period, eccentricity, inclination, Omega,
                omega, t_p):
-    """Calculate R.A. and Dec. offset of photocentre and barycentre"""
     ii = 0
     q = m2 / m1
     semimajor_au = ((m1 + m2) * period ** 2) ** (1. / 3)
