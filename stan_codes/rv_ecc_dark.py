@@ -525,7 +525,7 @@ program_code = """functions {
         */
         return a * (1 - pow(eccentricity, 2))/(1 + eccentricity * cos(true_anomaly));
     }
-    vector[] position_2d(int T, vector true_anomaly, vector rad, real cos_inclination, real Omega_, real omega_) {
+    array[] vector position_2d(int T, vector true_anomaly, vector rad, real cos_inclination, real Omega_, real omega_) {
         /*
         Calculate the 2D position of a component.
 
@@ -549,7 +549,7 @@ program_code = """functions {
         //vector[T] z_new = x*sin(inclination)*sin(omega_) + y*sin(inclination)*cos(omega_);
         return {x_new, y_new};
     }
-    vector[] projected_position_2d(int T, vector t, real a, real P, real eccentricity, real cos_inclination, real Omega_, real omega_, real t_peri) {
+    array[] vector projected_position_2d(int T, vector t, real a, real P, real eccentricity, real cos_inclination, real Omega_, real omega_, real t_peri) {
         /*
         Calculate the projected position in the plane of the sky.
 
@@ -572,23 +572,23 @@ program_code = """functions {
         */
         vector[T] true_anomaly = true_anomaly_calc(T, t, P, eccentricity, t_peri);
         vector[T] rad = position(true_anomaly, a, eccentricity);
-        vector[T] xyz[2];
+        array[2] vector[T] xyz;
         xyz = position_2d(T, true_anomaly, rad, cos_inclination, Omega_, omega_);
         return {xyz[2], xyz[1]};
     }
-    real[] initial_position(real a, real P, real q, real l, real eccentricity, real cos_inclination, real Omega_, real omega_, real t_peri) {
-        vector[1] xy[2] = projected_position_2d(1, rep_vector(0, 1), a, P, eccentricity, cos_inclination, Omega_, omega_, t_peri);
+    array[] real initial_position(real a, real P, real q, real l, real eccentricity, real cos_inclination, real Omega_, real omega_, real t_peri) {
+        array[2] vector[1] xy = projected_position_2d(1, rep_vector(0, 1), a, P, eccentricity, cos_inclination, Omega_, omega_, t_peri);
         real s = photocenter_scalar(q, l);
         return {xy[1][1] * s, xy[2][1] * s};
     }
-    vector[] source_position(int T, vector t, real a, real P, real q, real l, real eccentricity, real cos_inclination, real Omega_, real omega_, real t_peri) {
-        vector[T] xy[2] = projected_position_2d(T, t, a, P, eccentricity, cos_inclination, Omega_, omega_, t_peri);
+    array[] vector source_position(int T, vector t, real a, real P, real q, real l, real eccentricity, real cos_inclination, real Omega_, real omega_, real t_peri) {
+        array[2] vector[T] xy = projected_position_2d(T, t, a, P, eccentricity, cos_inclination, Omega_, omega_, t_peri);
         real s = photocenter_scalar(q, l);
         return {xy[1] * s, xy[2] * s};
     }    
-    vector[] system_pos(int T, vector t, vector gaia_ra_col, vector gaia_dec_col, real q, real l,real a, real P, real eccentricity, real cos_inclination, real Omega_, real omega_, real t_peri) {
-        real p0[2] = initial_position(a, P, q, l, eccentricity, cos_inclination, Omega_, omega_, t_peri);
-        vector[T] p1[2] = source_position(T, t, a, P, q, l, eccentricity, cos_inclination, Omega_, omega_, t_peri);
+    array[] vector system_pos(int T, vector t, vector gaia_ra_col, vector gaia_dec_col, real q, real l,real a, real P, real eccentricity, real cos_inclination, real Omega_, real omega_, real t_peri) {
+        array[2] real p0 = initial_position(a, P, q, l, eccentricity, cos_inclination, Omega_, omega_, t_peri);
+        array[2] vector[T] p1 = source_position(T, t, a, P, q, l, eccentricity, cos_inclination, Omega_, omega_, t_peri);
         vector[T] ra_diff_col = gaia_ra_col + (p1[1]);
         vector[T] dec_diff_col = gaia_dec_col + (p1[2]);
         return {ra_diff_col, dec_diff_col};
@@ -672,7 +672,7 @@ program_code = """functions {
     }
     real reduced_unit_weight_error(int T, vector t, vector gaia_ra_col, vector gaia_dec_col, real q, real l, real a, real P, real eccentricity, real cos_inclination, real Omega_, real omega_, real t_peri, vector sin_scan_angle, vector cos_scan_angle, real al_err, matrix ACAT) {
         //real t_peri = -initial_phase * P / (2*pi());
-        vector[T] pos[2] = system_pos(T, t, gaia_ra_col, gaia_dec_col, q, l, a, P, eccentricity, cos_inclination, Omega_, omega_, t_peri);
+        array[2] vector[T] pos = system_pos(T, t, gaia_ra_col, gaia_dec_col, q, l, a, P, eccentricity, cos_inclination, Omega_, omega_, t_peri);
         vector[T] al_pos = pos[1] .* sin_scan_angle + pos[2] .* cos_scan_angle;
         vector[T] R = (al_pos' - al_pos' * ACAT)';
         real ruwe = sqrt(sum(pow(R/al_err, 2)) / (T - 5));
@@ -682,7 +682,7 @@ program_code = """functions {
         return ruwe;
         return sqrt(sum(pow(R/al_err, 2)) / (T - 5));
     }
-    vector[] gaia_pos(int T, real ra_off, real dec_off, real parallax, real pmra, real pmdec, matrix gaia_mat) {
+    array[] vector gaia_pos(int T, real ra_off, real dec_off, real parallax, real pmra, real pmdec, matrix gaia_mat) {
     	vector[5] obs_vec = [ra_off,dec_off,parallax,pmra,pmdec]';
     	vector[2*T] diffs = gaia_mat*obs_vec;
     	vector[T] ra_diff_com = diffs[1:T];
@@ -755,8 +755,8 @@ model {
     {
         real a0 = a*(q/(1+q)-l/(1+l)); // l = 0 for a dark companion
         real a1 = a*(q/(1+q));
-        vector[T] gaia_diffs[2] = gaia_pos(T, ra_real, dec_real, plx_real, pmra_real, pmdec_real, gaia_mat);
-        vector[T] total_diffs[2] = system_pos(T, t, gaia_diffs[1], gaia_diffs[2], q, l, a, P, e, cos_inclination, Omega, omega, t_peri);
+        array[2] vector[T] gaia_diffs = gaia_pos(T, ra_real, dec_real, plx_real, pmra_real, pmdec_real, gaia_mat);
+        array[2] vector[T] total_diffs = system_pos(T, t, gaia_diffs[1], gaia_diffs[2], q, l, a, P, e, cos_inclination, Omega, omega, t_peri);
         vector[T] x_AL = total_diffs[1].*sin_scan_angle +  total_diffs[2].*cos_scan_angle;
         x_AL = x_AL + ast_noise;
         vector[5] obs_vals = gaia_params(T, x_AL, al_err, gaia_mat_AL);
@@ -774,15 +774,15 @@ model {
 generated quantities {
 	vector[5] stan_params;
 	{
-		vector[T] gaia_diffs[2] = gaia_pos(T, ra_real, dec_real, plx_real, pmra_real, pmdec_real, gaia_mat);
-		vector[T] total_diffs[2] = system_pos(T, t, gaia_diffs[1], gaia_diffs[2], q, l, a, P, e, cos_inclination, Omega, omega, t_peri);
+		array[2] vector[T] gaia_diffs = gaia_pos(T, ra_real, dec_real, plx_real, pmra_real, pmdec_real, gaia_mat);
+		array[2] vector[T] total_diffs = system_pos(T, t, gaia_diffs[1], gaia_diffs[2], q, l, a, P, e, cos_inclination, Omega, omega, t_peri);
         vector[T] x_AL = total_diffs[1].*sin_scan_angle +  total_diffs[2].*cos_scan_angle;
 		stan_params = gaia_params(T, x_AL, al_err, gaia_mat_AL);
 	}
     real ruwe;
     {
-        vector[T] gaia_diffs[2] = gaia_pos(T, ra_real, dec_real, plx_real, pmra_real, pmdec_real, gaia_mat);
-		vector[T] total_diffs[2] = system_pos(T, t, gaia_diffs[1], gaia_diffs[2], q, l, a, P, e, cos_inclination, Omega, omega, t_peri);
+        array[2] vector[T] gaia_diffs = gaia_pos(T, ra_real, dec_real, plx_real, pmra_real, pmdec_real, gaia_mat);
+		array[2] vector[T] total_diffs = system_pos(T, t, gaia_diffs[1], gaia_diffs[2], q, l, a, P, e, cos_inclination, Omega, omega, t_peri);
         vector[T] x_AL = total_diffs[1].*sin_scan_angle +  total_diffs[2].*cos_scan_angle;
         x_AL = x_AL + ast_noise;
         vector[5] obs_vals = gaia_params(T, x_AL, al_err, gaia_mat_AL);
@@ -810,12 +810,12 @@ generated quantities {
      }
     array[2] vector[T] pos_tot;
     {
-    	vector[T] diffs[2] = gaia_pos(T, ra_real, dec_real, plx_real, pmra_real, pmdec_real, gaia_mat);
+    	array[2] vector[T] diffs = gaia_pos(T, ra_real, dec_real, plx_real, pmra_real, pmdec_real, gaia_mat);
     	pos_tot = system_pos(T, t, diffs[1], diffs[2], q, l, a, P, e, cos_inclination, Omega, omega, t_peri);
     }
     array[2] vector[T] pos_com;
     {
-    	vector[T] diffs[2] = gaia_pos(T, ra_real, dec_real, plx_real, pmra_real, pmdec_real, gaia_mat);
+    	array[2] vector[T] diffs = gaia_pos(T, ra_real, dec_real, plx_real, pmra_real, pmdec_real, gaia_mat);
     	pos_com[1] = diffs[1];
     	pos_com[2] = diffs[2];
     }
@@ -825,8 +825,8 @@ generated quantities {
     }
     vector[5] stan_obs;
     {
-        vector[T] gaia_diffs[2] = gaia_pos(T, ra_real, dec_real, plx_real, pmra_real, pmdec_real, gaia_mat);
-    	vector[T] total_diffs[2] = system_pos(T, t, gaia_diffs[1], gaia_diffs[2], q, l, a, P, e, cos_inclination, Omega, omega, t_peri);
+        array[2] vector[T] gaia_diffs = gaia_pos(T, ra_real, dec_real, plx_real, pmra_real, pmdec_real, gaia_mat);
+    	array[2] vector[T] total_diffs = system_pos(T, t, gaia_diffs[1], gaia_diffs[2], q, l, a, P, e, cos_inclination, Omega, omega, t_peri);
         stan_obs = gaia_obs(T, sin_scan_angle, cos_scan_angle, total_diffs[1], total_diffs[2], inv_gaia);
     }
     vector[T2] rv_sim;
